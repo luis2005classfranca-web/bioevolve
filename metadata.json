@@ -1,0 +1,7 @@
+{
+  "name": "BioEvolve",
+  "description": "Personal Health Intelligence: Transform physical exams into structured data and integrate with wearable biometrics for a complete health timeline.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

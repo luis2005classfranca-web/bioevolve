@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "bioScore": { "type": "number", "description": "Calculated health score" }
+      },
+      "required": ["uid", "email"]
+    },
+    "ExamRecord": {
+      "title": "Exam Record",
+      "description": "Structured data from physical exams",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date-time" },
+        "analyte": { "type": "string" },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "referenceRange": { "type": "string" },
+        "category": { "type": "string", "enum": ["blood", "urine", "imaging", "other"] },
+        "imageUrl": { "type": "string", "format": "uri" }
+      },
+      "required": ["date", "analyte", "value", "unit"]
+    },
+    "WearableData": {
+      "title": "Wearable Data",
+      "description": "Biometric data from wearables",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "steps": { "type": "number" },
+        "heartRate": { "type": "number" },
+        "sleepHours": { "type": "number" },
+        "spO2": { "type": "number" }
+      },
+      "required": ["timestamp"]
+    },
+    "CheckUp": {
+      "title": "Daily Check-up",
+      "description": "User self-reported daily health check",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "fatigue": { "type": "number" },
+        "stress": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["date"]
+    },
+    "HealthProfile": {
+      "title": "Health Profile",
+      "description": "Initial health questionnaire data",
+      "type": "object",
+      "properties": {
+        "conditions": { "type": "array", "items": { "type": "string" } },
+        "allergies": { "type": "string" },
+        "medications": { "type": "string" },
+        "goals": { "type": "string" },
+        "onboardingComplete": { "type": "boolean" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User document"
+    },
+    "/users/{userId}/profile/initial": {
+      "schema": "HealthProfile",
+      "description": "Initial health questionnaire"
+    },
+    "/users/{userId}/exams/{examId}": {
+      "schema": "ExamRecord",
+      "description": "Exam records subcollection"
+    },
+    "/users/{userId}/wearableData/{dataId}": {
+      "schema": "WearableData",
+      "description": "Wearable biometrics subcollection"
+    },
+    "/users/{userId}/dailyCheckups/{checkupId}": {
+      "schema": "CheckUp",
+      "description": "Daily check-ups subcollection"
+    }
+  }
+}

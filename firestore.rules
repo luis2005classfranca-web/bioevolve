@@ -1,0 +1,158 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, email format)
+    //   - displayName: string (optional)
+    //   - photoURL: string (optional, URL format)
+    //   - bioScore: number (optional)
+    //
+    // Collection: /users/{userId}/exams/{examId}
+    // Fields:
+    //   - date: string (required, date format)
+    //   - analyte: string (required)
+    //   - value: number (required)
+    //   - unit: string (required)
+    //   - referenceRange: string (optional)
+    //   - category: string (required, one of ['blood', 'urine', 'imaging', 'other'])
+    //   - imageUrl: string (optional, URL format)
+    //
+    // Collection: /users/{userId}/wearableData/{dataId}
+    // Fields:
+    //   - timestamp: string (required, date format)
+    //   - steps: number (optional)
+    //   - heartRate: number (optional)
+    //   - sleepHours: number (optional)
+    //   - spO2: number (optional)
+    //
+    // Collection: /users/{userId}/dailyCheckups/{checkupId}
+    // Fields:
+    //   - date: string (required, date format)
+    //   - fatigue: number (optional, 1-10)
+    //   - stress: number (optional, 1-10)
+    //   - notes: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "luis2005.classfranca@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function hasOnlyAllowedFields(allowedFields) {
+      return request.resource.data.keys().hasOnly(allowedFields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.uid is string && data.uid.size() > 0 &&
+             data.email is string && isValidEmail(data.email) &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('photoURL' in data) || isValidUrl(data.photoURL)) &&
+             (!('bioScore' in data) || (data.bioScore is number)) &&
+             (!('role' in data) || data.role == 'user'); // Deny self-assigning admin
+    }
+
+    function isValidExam(data) {
+      return data.date is string &&
+             data.analyte is string && data.analyte.size() > 0 &&
+             data.value is number &&
+             data.unit is string &&
+             data.category in ['blood', 'urine', 'imaging', 'other'] &&
+             (!('imageUrl' in data) || isValidUrl(data.imageUrl));
+    }
+
+    function isValidWearableData(data) {
+      return data.timestamp is string &&
+             (!('steps' in data) || data.steps is number) &&
+             (!('heartRate' in data) || data.heartRate is number) &&
+             (!('sleepHours' in data) || data.sleepHours is number) &&
+             (!('spO2' in data) || data.spO2 is number);
+    }
+
+    function isValidCheckup(data) {
+      return data.date is string &&
+             (!('fatigue' in data) || (data.fatigue is number && data.fatigue >= 0 && data.fatigue <= 10)) &&
+             (!('stress' in data) || (data.stress is number && data.stress >= 0 && data.stress <= 10)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    }
+
+    function isValidProfile(data) {
+      return (!('conditions' in data) || data.conditions is list) &&
+             (!('allergies' in data) || (data.allergies is string && data.allergies.size() < 500)) &&
+             (!('onboardingComplete' in data) || data.onboardingComplete is bool);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data)) || isAdmin();
+
+      match /profile/initial {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create, update: if isOwner(userId) && isValidProfile(request.resource.data);
+      }
+
+      match /exams/{examId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidExam(request.resource.data);
+        allow update: if isOwner(userId) && isValidExam(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /wearableData/{dataId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidWearableData(request.resource.data);
+        allow update: if isOwner(userId) && isValidWearableData(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /dailyCheckups/{checkupId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidCheckup(request.resource.data);
+        allow update: if isOwner(userId) && isValidCheckup(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
