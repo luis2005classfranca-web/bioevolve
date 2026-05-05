@@ -16,6 +16,12 @@ export async function extractHealthDataFromImage(base64Image: string): Promise<H
     const baseUrl = import.meta.env.VITE_API_URL || "";
     const endpoint = `${baseUrl}/api/gemini`;
     
+    // Client-side size check (approximate MB)
+    const sizeInMB = (base64Image.length * 0.75) / (1024 * 1024);
+    if (sizeInMB > 30) {
+      throw new Error("O arquivo é muito grande (acima de 30MB). Por favor, tente um arquivo menor ou uma imagem com resolução reduzida.");
+    }
+
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -25,7 +31,18 @@ export async function extractHealthDataFromImage(base64Image: string): Promise<H
     });
 
     if (!response.ok) {
-      throw new Error(`Server responded with ${response.status}`);
+      if (response.status === 413) {
+        throw new Error("O arquivo excede o limite permitido pelo servidor. Tente reduzir o tamanho do PDF ou da imagem.");
+      }
+      
+      let errorMessage = `Erro no servidor (${response.status})`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) errorMessage = errorData.error;
+      } catch (e) {
+        // Fallback to status text
+      }
+      throw new Error(errorMessage);
     }
 
     return await response.json();

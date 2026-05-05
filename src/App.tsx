@@ -426,7 +426,7 @@ export default function App() {
                 </div>
                 <input 
                   type="file" 
-                  accept="image/*" 
+                  accept="image/*,application/pdf" 
                   className="hidden" 
                   ref={fileInputRef}
                   onChange={handleImageUpload}
@@ -436,7 +436,7 @@ export default function App() {
                   disabled={isProcessing}
                   className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all disabled:opacity-50"
                 >
-                  {isProcessing ? 'Processando com IA...' : 'Tirar Foto ou Upload'}
+                  {isProcessing ? 'Processando com IA...' : 'Tirar Foto ou Upload (PDF/Imagem)'}
                 </button>
               </div>
 

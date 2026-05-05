@@ -9,7 +9,7 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: "10mb" })); // Increased limit for image data
+app.use(express.json({ limit: "50mb" })); // Increased limit for larger PDFs and high-res images
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -18,42 +18,58 @@ app.post("/api/gemini", async (req, res) => {
   try {
     const { base64Image } = req.body;
     if (!base64Image) {
-      return res.status(400).json({ error: "No image provided" });
+      return res.status(400).json({ error: "No document provided" });
     }
 
-    const mimeTypeMatch = base64Image.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+    const mimeTypeMatch = base64Image.match(/^data:([^;]+);base64,/);
     const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg";
-    const data = base64Image.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
+    const data = base64Image.split(',')[1];
+
+    console.log(`Processing document: MIME=${mimeType}, size=${Math.round(base64Image.length / 1024 / 1024)}MB`);
 
     const prompt = `
-      Você é um motor de inteligência em saúde de alta precisão especializado em análise de documentos desestruturados (PDFs, imagens, tabelas complexas).
+      Você é um motor de inteligência em saúde de altíssima precisão especializado em análise de documentos desestruturados (PDFs, imagens, tabelas complexas).
 
       OBJETIVO:
-      Extrair e interpretar métricas de saúde com máxima precisão, mesmo em documentos com texto bagunçado, caracteres corrompidos ou colunas desalinhadas.
+      Extrair e interpretar métricas de saúde com máxima precisão, mesmo em documentos com texto bagunçado, caracteres corrompidos, encoding quebrado ou colunas desalinhadas.
 
-      INSTRUÇÕES DE NLP E MAPEAMENTO:
-      1. Saneamento: Limpe caracteres corrompidos. Normalize "74,1" para 74.1. Remova "%" ou unidades coladas nos números.
-      2. Mapeamento Flexível (Dicionário):
-         - Peso: ["peso", "weight", "massa corporal", "body weight"]
-         - Altura: ["altura", "height", "stature"]
-         - Gordura Percentual: ["gordura corporal", "% fat", "body fat", "percentual de gordura"]
-         - E assim por diante para: IMC (BMI), Massa Muscular, Gordura Visceral, TMB (BMR), Água Corporal, Idade Metabólica.
-      3. Inteligência Extra:
-         - Se Peso e Altura estiverem presentes mas não o IMC, calcule: IMC = Peso / (Altura * Altura).
-         - Identifique se o documento é um Exame Laboratorial (sangue/urina) ou Bioimpedância (composição corporal).
-      4. Confiança: Atribua um score de 0 a 100 baseado na legibilidade e completude.
+      PIPELINE DE PROCESSAMENTO:
+      1. Saneamento e Limpeza (OCR Avançado):
+         - Limpe caracteres corrompidos (ex: símbolos estranhos como , □).
+         - Normalize texto: remova espaços extras, corrija encoding.
+         - Normalize números: "74,1" -> 74.1, "24%" -> 24.
+         - Unifique unidades: kg, %, kcal, mg/dL, etc.
 
-      Sempre retorne um ARRAY de objetos no formato JSON:
+      2. Mapeamento Flexível (NLP Contextual):
+         Identifique métricas baseado no contexto, não apenas na posição:
+         - PESO: ["peso", "weight", "massa corporal", "body weight", "masa"]
+         - ALTURA: ["altura", "height", "estatura", "stature"]
+         - IMC: ["imc", "bmi", "índice de massa corporal"]
+         - GORDURA_PERCENTUAL: ["gordura", "body fat", "% gordura", "percentual de gordura", "fat rate"]
+         - MASSA_MUSCULAR: ["massa muscular", "muscle mass", "músculo"]
+         - GORDURA_VISCERAL: ["gordura visceral", "visceral fat", "level visceral"]
+         - TMB: ["taxa metabólica", "basal metabolic rate", "tmb", "bmr"]
+         - ÁGUA: ["água corporal", "total body water", "tbw"]
+
+      3. Inteligência Extra e Fallback:
+         - Se houver Peso e Altura (em metros), calcule o IMC se ele estiver ausente: IMC = Peso / (Altura * Altura).
+         - Identifique a data do exame. Se não encontrar, use a data atual.
+         - Se um valor estiver ilegível, retorne null para esse campo específico em vez de inventar dados.
+
+      SAÍDA ESPERADA:
+      Retorne SEMPRE um ARRAY de objetos no formato JSON. Se for um exame de bioimpedância, extraia cada métrica como um item do array. Se for laboratorial, extraia cada analito.
+
+      Formato:
       [{
         "date": "YYYY-MM-DD",
         "category": "biometry" | "laboratory" | "other",
-        "analyte": "Nome padronizado (ex: Peso, Glicose, IMC)",
-        "label": "Nome original encontrado",
-        "value": number,
-        "unit": "unidade padronizada",
-        "referenceRange": "referência se houver",
-        "confidence": 0-100,
-        "isCalculated": boolean
+        "analyte": "Nome Padronizado (ex: Peso, Glicose, Gordura Percentual)",
+        "label": "Termo original encontrado no documento",
+        "value": number (apenas o número, ex: 75.5),
+        "unit": "unidade padronizada (ex: kg, %, mg/dL)",
+        "referenceRange": "intervalo de referência se disponível",
+        "confidence": 0-100 (score de confiança na extração),
+        "isCalculated": boolean (true se foi calculado por você, ex: IMC)
       }]
     `;
 
@@ -75,11 +91,17 @@ app.post("/api/gemini", async (req, res) => {
       }
     });
 
-    const text = response.text || "[]";
+    if (!response.text) {
+      console.error("Gemini returned empty text. Safety filters or processing error?");
+      return res.status(500).json({ error: "O modelo não conseguiu extrair dados do documento." });
+    }
+
+    const text = response.text;
     res.json(JSON.parse(text));
   } catch (error) {
     console.error("Gemini proxy error:", error);
-    res.status(500).json({ error: "Failed to process image" });
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+    res.status(500).json({ error: `Falha ao processar documento: ${errorMessage}` });
   }
 });
 
