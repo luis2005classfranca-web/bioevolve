@@ -1,11 +1,14 @@
 /// <reference types="vite/client" />
 export interface HealthDataPoint {
   date: string;
+  category: 'biometry' | 'laboratory' | 'other';
   analyte: string;
+  label?: string;
   value: number;
   unit: string;
-  referenceRange: string;
-  category: 'blood' | 'urine' | 'imaging' | 'other';
+  referenceRange?: string;
+  confidence?: number;
+  isCalculated?: boolean;
 }
 
 export async function extractHealthDataFromImage(base64Image: string): Promise<HealthDataPoint[]> {

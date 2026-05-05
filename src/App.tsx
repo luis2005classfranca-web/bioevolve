@@ -463,12 +463,35 @@ export default function App() {
                   </div>
                   <div className="space-y-3">
                     {scanResult.map((res, idx) => (
-                      <div key={idx} className="p-3 bg-slate-50 rounded-xl">
-                        <div className="flex justify-between">
-                          <span className="text-xs font-bold text-slate-500 uppercase">{res.analyte}</span>
-                          <span className="text-xs text-slate-400">{res.date}</span>
+                      <div key={idx} className="p-3 bg-slate-50 rounded-xl border border-slate-100 relative overflow-hidden">
+                        {res.isCalculated && (
+                          <div className="absolute top-0 right-0 bg-indigo-500 text-[8px] text-white px-2 py-0.5 rounded-bl-lg font-bold uppercase">
+                            Calculado pela IA
+                          </div>
+                        )}
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-700 uppercase tracking-tight">{res.analyte}</span>
+                            {res.label && res.label !== res.analyte && (
+                              <span className="text-[10px] text-slate-400 italic">Original: {res.label}</span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-medium">{res.date}</span>
                         </div>
-                        <p className="text-lg font-bold text-slate-800">{res.value} {res.unit}</p>
+                        <div className="flex justify-between items-end">
+                          <p className="text-xl font-bold text-slate-900">{res.value} <span className="text-sm font-normal text-slate-400">{res.unit}</span></p>
+                          {res.confidence !== undefined && (
+                            <div className="flex items-center gap-1">
+                              <div className="w-12 h-1 bg-slate-200 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full ${res.confidence > 80 ? 'bg-emerald-500' : res.confidence > 50 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                                  style={{ width: `${res.confidence}%` }}
+                                />
+                              </div>
+                              <span className="text-[9px] font-bold text-slate-400">{res.confidence}%</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

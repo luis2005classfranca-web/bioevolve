@@ -1,12 +1,15 @@
 export interface ExamRecord {
   id: string;
   date: string;
+  category: 'biometry' | 'laboratory' | 'other';
   analyte: string;
+  label?: string;
   value: number;
   unit: string;
-  referenceRange: string;
-  category: 'blood' | 'urine' | 'imaging' | 'other';
+  referenceRange?: string;
   imageUrl?: string;
+  confidence?: number;
+  isCalculated?: boolean;
 }
 
 export interface WearableData {

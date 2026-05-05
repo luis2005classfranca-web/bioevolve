@@ -4,6 +4,18 @@ import { Activity, Shield, Zap, Heart } from 'lucide-react';
 import { loginWithGoogle } from '../lib/firebase';
 
 const LoginScreen: React.FC = () => {
+  const [loginError, setLoginError] = React.useState(false);
+
+  const handleLogin = async () => {
+    try {
+      setLoginError(false);
+      await loginWithGoogle();
+    } catch (e) {
+      console.error("Login Error:", e);
+      setLoginError(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col relative overflow-hidden font-sans">
       {/* Background Decorative Elements */}
@@ -73,24 +85,25 @@ const LoginScreen: React.FC = () => {
         </motion.div>
 
         {/* Login Actions */}
-        <motion.div 
-          initial={{ y: 40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-          className="w-full space-y-4"
-        >
-          <button 
-            onClick={() => loginWithGoogle()}
-            className="w-full bg-white border border-slate-200 hover:border-indigo-300 py-4 px-6 rounded-2xl flex items-center justify-center gap-3 font-bold text-slate-700 shadow-sm transition-all active:scale-[0.98] group"
-          >
-            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5 group-hover:scale-110 transition-transform" />
-            Continuar com Google
-          </button>
-          
-          <p className="text-[10px] text-center text-slate-400 uppercase tracking-widest font-bold">
-            Ao entrar, você concorda com nossos termos.
-          </p>
-        </motion.div>
+          <div className="w-full space-y-4">
+            {loginError && (
+              <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-[10px] text-rose-600 font-medium leading-relaxed">
+                <p className="flex items-center gap-2 mb-1 font-bold"><Zap size={12} /> Erro de Conexão</p>
+                Se você estiver acessando pelo Vercel, certifique-se de que o domínio da sua app está listado em "Authorized Domains" no Console do Firebase.
+              </div>
+            )}
+            <button 
+              onClick={handleLogin}
+              className="w-full bg-white border border-slate-200 hover:border-indigo-300 py-4 px-6 rounded-2xl flex items-center justify-center gap-3 font-bold text-slate-700 shadow-sm transition-all active:scale-[0.98] group"
+            >
+              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              Continuar com Google
+            </button>
+            
+            <p className="text-[10px] text-center text-slate-400 uppercase tracking-widest font-bold">
+              Ao entrar, você concorda com nossos termos.
+            </p>
+          </div>
       </main>
       
       {/* Aesthetic Footer Detail */}

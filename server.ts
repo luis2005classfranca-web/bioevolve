@@ -26,17 +26,39 @@ app.post("/api/gemini", async (req, res) => {
     const data = base64Image.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
 
     const prompt = `
-      Extract health exam data from this image. Only return a JSON array as response.
-      - Date of exam (ISO or YYYY-MM-DD or Unknown/Current Year)
-      - Analyte name (e.g., Glucose)
-      - Numeric value
-      - Unit (e.g., mg/dL)
-      - Reference Range
-      - Category (blood, urine, imaging, other)
+      Você é um motor de inteligência em saúde de alta precisão especializado em análise de documentos desestruturados (PDFs, imagens, tabelas complexas).
+
+      OBJETIVO:
+      Extrair e interpretar métricas de saúde com máxima precisão, mesmo em documentos com texto bagunçado, caracteres corrompidos ou colunas desalinhadas.
+
+      INSTRUÇÕES DE NLP E MAPEAMENTO:
+      1. Saneamento: Limpe caracteres corrompidos. Normalize "74,1" para 74.1. Remova "%" ou unidades coladas nos números.
+      2. Mapeamento Flexível (Dicionário):
+         - Peso: ["peso", "weight", "massa corporal", "body weight"]
+         - Altura: ["altura", "height", "stature"]
+         - Gordura Percentual: ["gordura corporal", "% fat", "body fat", "percentual de gordura"]
+         - E assim por diante para: IMC (BMI), Massa Muscular, Gordura Visceral, TMB (BMR), Água Corporal, Idade Metabólica.
+      3. Inteligência Extra:
+         - Se Peso e Altura estiverem presentes mas não o IMC, calcule: IMC = Peso / (Altura * Altura).
+         - Identifique se o documento é um Exame Laboratorial (sangue/urina) ou Bioimpedância (composição corporal).
+      4. Confiança: Atribua um score de 0 a 100 baseado na legibilidade e completude.
+
+      Sempre retorne um ARRAY de objetos no formato JSON:
+      [{
+        "date": "YYYY-MM-DD",
+        "category": "biometry" | "laboratory" | "other",
+        "analyte": "Nome padronizado (ex: Peso, Glicose, IMC)",
+        "label": "Nome original encontrado",
+        "value": number,
+        "unit": "unidade padronizada",
+        "referenceRange": "referência se houver",
+        "confidence": 0-100,
+        "isCalculated": boolean
+      }]
     `;
 
     const response = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: {
         parts: [
           { text: prompt },
@@ -49,26 +71,12 @@ app.post("/api/gemini", async (req, res) => {
         ]
       },
       config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              date: { type: Type.STRING },
-              analyte: { type: Type.STRING },
-              value: { type: Type.NUMBER },
-              unit: { type: Type.STRING },
-              referenceRange: { type: Type.STRING },
-              category: { type: Type.STRING, enum: ["blood", "urine", "imaging", "other"] }
-            },
-            required: ["date", "analyte", "value", "unit"]
-          }
-        }
+        responseMimeType: "application/json"
       }
     });
 
-    res.json(JSON.parse(response.text || "[]"));
+    const text = response.text || "[]";
+    res.json(JSON.parse(text));
   } catch (error) {
     console.error("Gemini proxy error:", error);
     res.status(500).json({ error: "Failed to process image" });
