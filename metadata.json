@@ -1,0 +1,6 @@
+{
+  "name": "BioEvolve",
+  "description": "Exame de saúde simplificado: escaneie, analise com IA e acompanhe seu histórico.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

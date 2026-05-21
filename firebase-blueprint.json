@@ -1,0 +1,23 @@
+{
+  "entities": {
+    "Exam": {
+      "title": "Exam",
+      "description": "An exam record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "results": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "results", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/exams/{examId}": {
+      "schema": { "$ref": "#/entities/Exam" },
+      "description": "Exams for a user."
+    }
+  }
+}
